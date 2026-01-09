@@ -7,7 +7,7 @@ jupyter:
       extension: .Rmd
       format_name: rmarkdown
       format_version: '1.2'
-      jupytext_version: 1.16.6
+      jupytext_version: 1.18.1
   kernelspec:
     display_name: Python 3 (ipykernel)
     language: python
@@ -206,11 +206,11 @@ Here is `ski.draw.polygon` in action, for the `snake` contour above:
 
 ```{python}
 mask_shape = astronaut.shape[:-1]  # 2D mask shape (no color).
-face_mask = np.zeros(mask_shape)
+face_mask = np.zeros(mask_shape, dtype=bool)
 in_face_rows, in_face_cols = ski.draw.polygon(snake[:, 0],
                                               snake[:, 1],
                                               mask_shape)
-face_mask[in_face_rows, in_face_cols] = 1
+face_mask[in_face_rows, in_face_cols] = True
 ```
 
 ```{python}
@@ -218,6 +218,16 @@ fig, ax = image_show(astronaut)
 ax.imshow(face_mask, alpha=0.3);
 ```
 
+
+We can use a similar trick to make a mask for a circle (or other shapes - see `ski.draw`):
+
+```{python}
+circle_rows, circle_cols = ski.draw.disk([100, 220], radius=100, shape=mask_shape)
+circle_mask = np.zeros(mask_shape, dtype=bool)
+fig, ax = image_show(astronaut)
+circle_mask[circle_rows, circle_cols] = True
+ax.imshow(circle_mask, alpha=0.3);
+```
 
 ### Random walker
 
@@ -272,13 +282,38 @@ Can we accomplish the same task with flood fill?
 
 ```{python}
 seed_point = (100, 220)  # Experiment with the seed point
-flood_mask = seg.flood(astronaut_gray, seed_point, tolerance=0.3)  # Experiment with tolerance
+face_flood_mask = seg.flood(astronaut_gray, seed_point, tolerance=0.3)  # Experiment with tolerance
+
+# Display
+fig, ax = image_show(astronaut_gray)
+ax.imshow(face_flood_mask, alpha=0.3)
+ax.plot(seed_point[1], seed_point[0], 'bo');
 ```
 
+For convenience, we make a function to generate the mask, given the seed and thresholds, and display them.
+
 ```{python}
-fig, ax = image_show(astronaut_gray)
-ax.imshow(flood_mask, alpha=0.3)
-ax.plot(220, 100, 'bo');  # Show the seed point.
+def show_img_mask(img, mask, alpha=0.3):
+    """ Display an image with a mask overlaid.
+    """
+    fig, ax = image_show(img)
+    ax.imshow(mask, alpha=alpha)
+    return ax
+
+
+def make_show_flood(img, point, tol):
+    """ Calculate and return flood fill mask from img, point and tolerance.
+    """
+    flood_mask = seg.flood(img, point, tolerance=tol)
+    ax = show_img_mask(img, flood_mask)
+    ax.plot(point[1], point[0], 'bo')
+    return flood_mask
+```
+
+Now create and display the food fill for the 0.3 tolerance above:
+
+```{python}
+mask = make_show_flood(astronaut_gray, seed_point, 0.3);
 ```
 
 With our initial `tolerance=0.3`, the results are not ideal! The flood runs away into the background through the right earlobe.
@@ -286,32 +321,59 @@ With our initial `tolerance=0.3`, the results are not ideal! The flood runs away
 Let's think outside the box:
 
 * What if instead of segmenting the head, we segmented the background around
-  it and the collar?
+  it, and the collar, and each side of the helmet rim?
 * Is there any way to increase the contrast between the background and skin?
 
-```{python tags=c("raises-exception", "remove-output")}
+```{python}
+# These are seeds we used - but you may want to change these.
 seed_bkgnd = (100, 350)  # Background
 seed_collar = (200, 220)  # Collar
-
-better_contrast = ...  # Your idea to improve contrast here
-tol_bkgnd = ...   # Experiment with tolerance for background
-tol_collar = ...  # Experiment with tolerance for the collar
-
-flood_background = seg.flood(better_contrast, seed_bkgnd, tolerance=tol_bkgnd)
-flood_collar = seg.flood(better_contrast, seed_collar, tolerance=tol_collar)
+seed_left_rim = (150, 165)  # Left side of helmet rim.
+seed_right_rim = (210, 290)  # Right side of helmet rim.
 ```
 
 ```{python tags=c("raises-exception", "remove-output")}
+# Make a grayscale image with better contrast.
+better_contrast = ski.exposure.equalize_hist(astronaut_gray)
 fig, ax = image_show(better_contrast)
+```
 
-# Combine the two floods with binary OR operator
-ax.imshow(flood_background | flood_collar, alpha=0.3);
+```{python tags=c("raises-exception", "remove-output")}
+tol_bkgnd = 0.14  # Experiment with tolerance for background
+flood_background = make_show_flood(better_contrast, seed_bkgnd, tol_bkgnd);
+```
+
+```{python tags=c("raises-exception", "remove-output")}
+tol_collar = 0.2  # Experiment with tolerance for collar
+flood_collar = make_show_flood(better_contrast, seed_collar, tol_collar);
+```
+
+```{python tags=c("raises-exception", "remove-output")}
+tol_left_rim = 0.115  # Experiment with tolerance for left rim
+flood_left_rim = make_show_flood(better_contrast, seed_left_rim, tol_left_rim);
 ```
 
 ```{python}
-flood_mask2 = seg.flood(astronaut[..., 2], (200, 220), tolerance=40)
-fig, ax = image_show(astronaut[..., 2])
-ax.imshow(flood_mask | flood_mask2, alpha=0.3);
+tol_right_rim = 0.081  # Experiment with tolerance for right rim
+flood_right_rim = make_show_flood(better_contrast, seed_right_rim, tol_right_rim);
+```
+
+```{python tags=c("raises-exception", "remove-output")}
+# Combine the floods with the binary | (OR) operators.
+bad_mask = flood_background | flood_collar | flood_left_rim | flood_right_rim
+show_img_mask(astronaut_gray, bad_mask);
+```
+
+```{python}
+# Finally combine the bad areas with the circle mask, using binary AND (&) to get the face.
+face_mask = circle_mask & ~bad_mask
+show_img_mask(astronaut_gray, face_mask)
+```
+
+```{python}
+# We could even improve this further by erosion.
+better_face = ski.morphology.erosion(face_mask, footprint=ski.morphology.diamond(radius=1))
+show_img_mask(astronaut_gray, better_face);
 ```
 
 ## Unsupervised segmentation
