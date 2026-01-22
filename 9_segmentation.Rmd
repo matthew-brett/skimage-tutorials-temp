@@ -318,63 +318,73 @@ mask = make_show_flood(astronaut_gray, seed_point, 0.3);
 
 With our initial `tolerance=0.3`, the results are not ideal! The flood runs away into the background through the right earlobe.
 
-Let's think outside the box:
+::: {exercise-start}
+:label: face-fill-ex
+:class: dropdown
+:::
 
-* What if instead of segmenting the head, we segmented the background around
-  it, and the collar, and each side of the helmet rim?
-* Is there any way to increase the contrast between the background and skin?
-
-```{python}
-# These are seeds we used - but you may want to change these.
-seed_bkgnd = (100, 350)  # Background
-seed_collar = (200, 220)  # Collar
-seed_left_rim = (150, 165)  # Left side of helmet rim.
-seed_right_rim = (210, 290)  # Right side of helmet rim.
-```
-
-```{python tags=c("raises-exception", "remove-output")}
-# Make a grayscale image with better contrast.
-better_contrast = ski.exposure.equalize_hist(astronaut_gray)
-fig, ax = image_show(better_contrast)
-```
-
-```{python tags=c("raises-exception", "remove-output")}
-tol_bkgnd = 0.14  # Experiment with tolerance for background
-flood_background = make_show_flood(better_contrast, seed_bkgnd, tol_bkgnd);
-```
-
-```{python tags=c("raises-exception", "remove-output")}
-tol_collar = 0.2  # Experiment with tolerance for collar
-flood_collar = make_show_flood(better_contrast, seed_collar, tol_collar);
-```
-
-```{python tags=c("raises-exception", "remove-output")}
-tol_left_rim = 0.115  # Experiment with tolerance for left rim
-flood_left_rim = make_show_flood(better_contrast, seed_left_rim, tol_left_rim);
-```
+Experiment with the tolerance to find the best value to pick out the
+astronaut's face.  We don't think there is a tolerance that does a good job, but do the best you can.
 
 ```{python}
-tol_right_rim = 0.081  # Experiment with tolerance for right rim
-flood_right_rim = make_show_flood(better_contrast, seed_right_rim, tol_right_rim);
+# Experiment with the tolerance value.
+face_mask = make_show_flood(astronaut_gray, seed_point, 0.3);
 ```
 
-```{python tags=c("raises-exception", "remove-output")}
-# Combine the floods with the binary | (OR) operators.
-bad_mask = flood_background | flood_collar | flood_left_rim | flood_right_rim
-show_img_mask(astronaut_gray, bad_mask);
-```
+::: {exercise-end}
+:::
 
-```{python}
-# Finally combine the bad areas with the circle mask, using binary AND (&) to get the face.
-face_mask = circle_mask & ~bad_mask
-show_img_mask(astronaut_gray, face_mask)
-```
+::: {solution-start} face-fill-ex
+:class: dropdown
+:::
+
+We think this is about as good as you can make it:
 
 ```{python}
-# We could even improve this further by erosion.
-better_face = ski.morphology.erosion(face_mask, footprint=ski.morphology.diamond(radius=1))
-show_img_mask(astronaut_gray, better_face);
+face_mask = make_show_flood(astronaut_gray, seed_point, 0.165)
 ```
+
+::: {solution-end}
+:::
+
+::: {exercise-start}
+:label: eye-artery-ex
+:class: dropdown
+:::
+
+This is a rather low-resolution grayscale image of blood vessels in back of
+the eye (on the retina).
+
+```{python}
+vessels = ski.data.microaneurysms()
+plt.imshow(vessels, cmap='gray');
+```
+
+Your task is to pick out the vessel running horizontally across the image in the center, using flood fill.
+
+Use the display above to estimate a good seed point, then experiment with seed points and thresholds to pick out the whole vessel.  Here's one very bad experiment:
+
+```{python}
+# Use our function to apply flood fill with given seed point and threshold.
+vessel_mask = make_show_flood(phantom, (40, 40), 5);
+```
+
+::: {exercise-end}
+:::
+
+::: {solution-start} eye-artery-ex
+:class: dropdown
+:::
+
+We found these parameters worked well.  How does our result compare to yours?
+
+```{python}
+vessel_mask = make_show_flood(phantom, (50, 42), 15);
+```
+
+::: {solution-end}
+:::
+
 
 ## Unsupervised segmentation
 
@@ -604,9 +614,9 @@ ax.plot(reye[0], reye[1], marker='o', markersize=15, color="r");
 ```
 
 **Hint** : the nose is a strangely difficult problem.  You might consider
-trying filtered versions of the image to first detect the edges defining the
-nose (and other edges), and then find the pixels inside the nose area from the
-filtered image.  But any successful method is fine.
+trying an edge filtered version of the image to first detect the edges
+defining the nose (and other edges), and then find the pixels inside the nose
+area from the filtered image.  But any successful method is fine.
 
 ::: {exercise-end}
 :::
