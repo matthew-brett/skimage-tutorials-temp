@@ -366,7 +366,7 @@ Use the display above to estimate a good seed point, then experiment with seed p
 
 ```{python}
 # Use our function to apply flood fill with given seed point and threshold.
-vessel_mask = make_show_flood(phantom, (40, 40), 5);
+vessel_mask = make_show_flood(vessels, (40, 40), 5);
 ```
 
 ::: {exercise-end}
@@ -379,7 +379,7 @@ vessel_mask = make_show_flood(phantom, (40, 40), 5);
 We found these parameters worked well.  How does our result compare to yours?
 
 ```{python}
-vessel_mask = make_show_flood(phantom, (50, 42), 15);
+vessel_mask = make_show_flood(vessels, (50, 42), 15)
 ```
 
 ::: {solution-end}
@@ -613,7 +613,11 @@ ax.plot(nose[0], nose[1], marker='o', markersize=15, color="g")
 ax.plot(reye[0], reye[1], marker='o', markersize=15, color="r");
 ```
 
-**Hint** : the nose is a strangely difficult problem.  You might consider
+**Hint 1** : You might want to constrain the search for the right eye to a particular part of the image, and then refine within this area.
+
+**Hint 2** : Remember, you want a *mask* defining the right eye (not the boundary).
+
+**Hint 3** : the nose is a strangely difficult problem.  You might consider
 trying an edge filtered version of the image to first detect the edges
 defining the nose (and other edges), and then find the pixels inside the nose
 area from the filtered image.  But any successful method is fine.
@@ -631,7 +635,7 @@ cat_gray = ski.color.rgb2gray(chelsea)
 # Use the utility routine above.
 reye_points = circle_points(resolution=200, center=reye[::-1], radius=40)[:-1]
 # Refine the circle with an active contour to get the outline.
-reye_snake = seg.active_contour(cat_gray, points, alpha=0.23)
+reye_snake = seg.active_contour(cat_gray, reye_points, alpha=0.6)
 
 # Make a region from the outline.
 reye_mask = np.zeros(cat_gray.shape)
