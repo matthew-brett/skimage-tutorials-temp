@@ -613,9 +613,14 @@ ax.plot(nose[0], nose[1], marker='o', markersize=15, color="g")
 ax.plot(reye[0], reye[1], marker='o', markersize=15, color="r");
 ```
 
-**Hint 1** : You might want to constrain the search for the right eye to a particular part of the image, and then refine within this area.
+**Warning** : this is a stretch exercise — you will likely have to experiment,
+and review this page, and previous pages, to find good solutions.
 
-**Hint 2** : Remember, you want a *mask* defining the right eye (not the boundary).
+**Hint 1** : You might want to constrain the search for the right eye to
+a particular part of the image, and then refine within this area.
+
+**Hint 2** : Remember, you want a *mask* defining the right eye (not the
+boundary).
 
 **Hint 3** : the nose is a strangely difficult problem.  You might consider
 trying an edge filtered version of the image to first detect the edges
